@@ -97,17 +97,10 @@ object JedisConnection {
   // For resetting redis in tests only, not for production use.
   def flushDB(): Unit = {
     clusterNodeUrls.foreach { url =>
-      val uri = new URI(url)
-      val ssl = uri.getScheme == "rediss"
-      val jedis = if (ssl) {
-        // Carry the AUTH token through on the TLS branch; a rediss:// cluster
-        // with in-transit encryption typically also requires AUTH.
-        val sslConfig = DefaultJedisClientConfig.builder().ssl(true)
-        RedisClusterConfig.passwordOf(uri).foreach(sslConfig.password)
-        new Jedis(uri, sslConfig.build())
-      } else {
-        new Jedis(uri)
-      }
+      // new Jedis(URI) derives both the TLS setting (from a rediss:// scheme)
+      // and the AUTH token (from the URI userinfo) on its own, so no manual
+      // ssl/password wiring is needed here.
+      val jedis = new Jedis(new URI(url))
       try {
         jedis.flushDB()
       } finally {
